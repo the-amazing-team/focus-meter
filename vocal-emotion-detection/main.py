@@ -1,4 +1,6 @@
+import os
 import keras
+import librosa
 import matplotlib.pyplot as plt
 from keras.models import Sequential
 from keras.layers import Input, Flatten, Dropout, Activation
@@ -51,9 +53,8 @@ def generate_model():
     return model
 
 
-def generate_spectrogram(image_path):
-    sampling_rate, x = scipy.io.wavfile.read(image_path)
-
+def generate_spectrogram(wavefile_path):
+    sampling_rate, x = scipy.io.wavfile.read(wavefile_path)
     nstep = int(sampling_rate * 0.01)
     nwin = int(sampling_rate * 0.03)
     nfft = nwin
@@ -69,25 +70,7 @@ def generate_spectrogram(image_path):
     return X.T
 
 
-# model = generate_model()
-
-IMAGE_PATH = "dataset/Actor_01/03-01-01-01-01-01-01.wav"
-
-# image = generate_spectrogram(IMAGE_PATH)
-
-# plt.imshow(image, interpolation="nearest", origin="lower", aspect="auto")
-
-# plt.show()
-
-
-import os
-
-
-mylist = os.listdir("dataset/Actor_01")
-print(mylist)
-
-
-def generate_label_waveflie(wavfile_path):
+def generate_label_wavefiles(wavfile_path):
     filename = wavfile_path.split("/")[-1].split(".")[0]
     parameters = filename.split("-")
     emotion_id = int(parameters[2])
@@ -115,5 +98,46 @@ def generate_label_waveflie(wavfile_path):
     return {"emotion": emotion, "gender": "female" if is_female else "male"}
 
 
-label = generate_label_waveflie(IMAGE_PATH)
-print(label)
+def generate_dir_labels(wavfile_dir):
+    labels = []
+    for filename in os.listdir(wavfile_dir):
+        label = generate_label_wavefiles(wavfile_dir + "/" + filename)
+        labels.append(label)
+    return labels
+
+
+# mylist = os.listdir("dataset/Actor_01")
+# print(mylist)
+
+
+# model = generate_model()
+
+# DIR_PATH = "dataset/Actor_01"
+
+# # label = generate_dir_labels(DIR_PATH)
+# # pprint(label)
+
+from pprint import pprint
+
+
+def generate_feature(wavfile_path):
+    x, sampling_rate = librosa.load(
+        wavfile_path, res_type="kaiser_fast", duration=2.5, sr=22050 * 2, offset=0.5
+    )
+    mfccs = librosa.feature.mfcc(y=x, sr=sampling_rate, n_mfcc=13).T
+    feature = np.mean(mfccs, axis=0)
+    return feature
+
+
+WAVE_PATH = "dataset/Actor_01/03-01-01-01-01-01-01.wav"
+
+feature = generate_feature(WAVE_PATH)
+print(feature)
+
+
+# sampling_rate, x = scipy.io.wavfile.read(WAVE_PATH)
+# image = generate_spectrogram(sampling_rate=sampling_rate, x=x)
+
+# plt.imshow(image, interpolation="nearest", origin="lower", aspect="auto")
+
+# plt.show()
