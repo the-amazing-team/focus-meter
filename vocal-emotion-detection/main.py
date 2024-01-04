@@ -118,22 +118,60 @@ def generate_dir_labels(wavfile_dir):
 # # pprint(label)
 
 from pprint import pprint
+from tqdm import tqdm
+import pandas as pd
+from sklearn.utils import shuffle
 
 
 def generate_feature(wavfile_path):
     x, sampling_rate = librosa.load(
         wavfile_path, res_type="kaiser_fast", duration=2.5, sr=22050 * 2, offset=0.5
     )
-    mfccs = librosa.feature.mfcc(y=x, sr=sampling_rate, n_mfcc=13).T
+    sampling_rate = np.array(sampling_rate)
+    mfccs = librosa.feature.mfcc(y=x, sr=sampling_rate, n_mfcc=13)
     feature = np.mean(mfccs, axis=0)
     return feature
 
 
+def generate_dir_features(wavfile_dir):
+    data = []
+    print("\n[*] Generating features for directory: " + wavfile_dir)
+    for filename in tqdm(os.listdir(wavfile_dir)):
+        feature = generate_feature(wavfile_dir + "/" + filename)
+        label = generate_label_wavefiles(wavfile_dir + "/" + filename)
+        label_name = label["emotion"] + "__" + label["gender"]
+        data_row = [feature, label_name]
+        data.append(data_row)
+    print("[*] Generated features for directory: " + wavfile_dir)
+    return data
+
+
+def generate_dataset(dataset_path):
+    data = []
+    os.system("cls" if os.name == "nt" else "clear")
+    print("[*] Generating features for dataset: " + dataset_path)
+    for dir in tqdm(os.listdir(dataset_path)):
+        dir_path = dataset_path + "/" + dir
+        data += generate_dir_features(dir_path)
+        os.system("cls" if os.name == "nt" else "clear")
+        print("[*] Generating features for dataset: " + dataset_path)
+    print("[*] Generated features for dataset: " + dataset_path)
+
+    dataset = pd.DataFrame(data, columns=["feature", "class_label"])
+    dataset = dataset.fillna(0)
+    dataset = shuffle(dataset)
+
+    return dataset
+
+
 WAVE_PATH = "dataset/Actor_01/03-01-01-01-01-01-01.wav"
 
-feature = generate_feature(WAVE_PATH)
-print(feature)
+features = generate_dataset("dataset")
+features = pd.DataFrame(features, columns=["feature", "class_label"])
+print(features)
 
+# feature = generate_feature(WAVE_PATH)
+# print(feature)
 
 # sampling_rate, x = scipy.io.wavfile.read(WAVE_PATH)
 # image = generate_spectrogram(sampling_rate=sampling_rate, x=x)
