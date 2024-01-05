@@ -93,6 +93,9 @@ class HeadPoseDetector:
         headposes = [headpose.item() for headpose in headposes[0]]
         return headposes, image
 
+capture = cv2.VideoCapture(0)
+
+while True:
 
 frame = cv2.imread("sample.png")
 headpose_detector = HeadPoseDetector()
