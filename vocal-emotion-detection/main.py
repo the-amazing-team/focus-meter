@@ -13,14 +13,27 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 from utils import one_hot_encode, auto_pad
 from keras.models import load_model
+from sklearn.preprocessing import LabelEncoder
+import pickle
+from keras.utils import np_utils
 
 
 class VocalEmotionDetection:
     def __init__(
-        self, load_cache_dataset=True, load_cache_model=True, _save_cache_model=True
+        self,
+        load_cache_dataset=True,
+        load_cache_model=True,
+        save_cache_model=True,
+        load_cache_encoder=True,
+        save_cache_encoder=True,
     ):
         self.CACHE_MODEL_FILENAME = "model.h5"
-        self.is_save_cache_model = _save_cache_model
+        self.CACHE_ENCODER_FILENAME = "encoder.pkl"
+        self.CACHE_FEATURES_DATASET_FILENAME = "features.json"
+        self.CACHE_LABELS_DATASET_FILENAME = "labels.json"
+
+        self.is_save_cache_model = save_cache_model
+        self.is_save_cache_encoder = save_cache_encoder
 
         # Loading Model
         if load_cache_model and os.path.exists(self.CACHE_MODEL_FILENAME):
@@ -28,8 +41,18 @@ class VocalEmotionDetection:
         else:
             self.model = self._generate_model()
 
+        # Loading Encoder
+        if load_cache_encoder and os.path.exists(self.CACHE_ENCODER_FILENAME):
+            self.encoder = self._load_cache_encoder()
+        else:
+            self.encoder = LabelEncoder()
+
         # Loading Dataset
-        if load_cache_dataset:
+        if (
+            load_cache_dataset
+            and os.path.exists(self.CACHE_FEATURES_DATASET_FILENAME)
+            and os.path.exists(self.CACHE_LABELS_DATASET_FILENAME)
+        ):
             self.features = json.load(open("features.json", "r"))
             self.labels = json.load(open("labels.json", "r"))
         else:
@@ -80,7 +103,7 @@ class VocalEmotionDetection:
 
         return model
 
-    def _generate_label_wavefiles(wavfile_path):
+    def _generate_label_wavefiles(self, wavfile_path):
         filename = wavfile_path.split("/")[-1].split(".")[0]
         parameters = filename.split("-")
         emotion_id = int(parameters[2])
@@ -167,6 +190,12 @@ class VocalEmotionDetection:
         plt.imshow(image, interpolation="nearest", origin="lower", aspect="auto")
         plt.show()
 
+    def _one_hot_encode(self, labels):
+        return np_utils.to_categorical(self.encoder.fit_transform(labels))
+
+    def _one_hot_decode(self, labels):
+        return self.encoder.inverse_transform(labels)
+
     def train(self):
         train_features, test_features, train_labels, test_labels = train_test_split(
             self.features, self.labels, test_size=0.2, random_state=42
@@ -175,8 +204,10 @@ class VocalEmotionDetection:
         train_features_padded = auto_pad(train_features)
         test_features_padded = auto_pad(test_features)
 
-        train_labels = one_hot_encode(train_labels)
-        test_labels = one_hot_encode(test_labels)
+        train_labels = self._one_hot_encode(train_labels)
+        test_labels = self._one_hot_encode(test_labels)
+
+        self._save_cache_encoder()
 
         self.history = self.model.fit(
             train_features_padded,
@@ -199,8 +230,10 @@ class VocalEmotionDetection:
         train_features_padded = auto_pad(train_features)
         test_features_padded = auto_pad(test_features)
 
-        train_labels = one_hot_encode(train_labels)
-        test_labels = one_hot_encode(test_labels)
+        train_labels = self._one_hot_encode(train_labels)
+        test_labels = self._one_hot_encode(test_labels)
+
+        self._save_cache_encoder()
 
         self.history = self.model.fit(
             train_features_padded,
@@ -233,15 +266,40 @@ class VocalEmotionDetection:
     def _load_cache_model(self):
         return load_model(self.CACHE_MODEL_FILENAME)
 
+    def _save_cache_encoder(self):
+        with open(self.CACHE_ENCODER_FILENAME, "wb") as file:
+            pickle.dump(self.encoder, file)
+
+    def _load_cache_encoder(self):
+        with open(self.CACHE_ENCODER_FILENAME, "rb") as file:
+            return pickle.load(file)
+
     def predict_wavefile(self, wavfile_path):
         MAX_PAD = 216
         feature = self._generate_feature(wavfile_path)
         feature_padded = np.pad([feature], (0, MAX_PAD - len(feature)), "constant")
-        return self.model.predict(feature_padded)[0]
+        prediction = self.model.predict(feature_padded)[0]
+        label = self._one_hot_decode([np.argmax(prediction)])[0]
+        return label
+
+    def predict_wavefunction(self, x, sampling_rate):
+        MAX_PAD = 216
+        sampling_rate = np.array(sampling_rate)
+        mfccs = librosa.feature.mfcc(y=x, sr=sampling_rate, n_mfcc=13)
+        feature = np.mean(mfccs, axis=0).tolist()
+        feature_padded = np.pad([feature], (0, MAX_PAD - len(feature)), "constant")
+        prediction = self.model.predict(feature_padded)[0]
+        label = self._one_hot_decode([np.argmax(prediction)])[0]
+        return label
 
 
 AUDIO_PATH = "dataset/Actor_01/03-01-01-01-01-01-01.wav"
 
-detector = VocalEmotionDetection(load_cache_dataset=True)
-result = detector.predict_wavefile(AUDIO_PATH)
+detector = VocalEmotionDetection()
+detector.quick_train()
+
+x, sampling_rate = librosa.load(
+    AUDIO_PATH, res_type="kaiser_fast", duration=2.5, sr=22050 * 2, offset=0.5
+)
+result = detector.predict_wavefunction(x, sampling_rate)
 print(result)
