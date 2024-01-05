@@ -11,7 +11,7 @@ import os
 import json
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from utils import one_hot_encode, auto_pad
+from utils import auto_pad
 from keras.models import load_model
 from sklearn.preprocessing import LabelEncoder
 import pickle
