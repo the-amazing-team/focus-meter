@@ -11,7 +11,7 @@ import os
 import json
 import matplotlib.pyplot as plt
 from tqdm import tqdm
-from utils import auto_pad
+from services.vocal_emotion.utils import auto_pad
 from keras.models import load_model
 from sklearn.preprocessing import LabelEncoder
 import pickle
@@ -56,7 +56,9 @@ class VocalEmotionDetection:
             self.features = json.load(open("features.json", "r"))
             self.labels = json.load(open("labels.json", "r"))
         else:
-            self.features, self.labels = self._generate_dataset("dataset")
+            self.features, self.labels = self._generate_dataset(
+                "./services/vocal_emotion/dataset"
+            )
             json.dump(self.features, open("features.json", "w"))
             json.dump(self.labels, open("labels.json", "w"))
 
@@ -280,7 +282,7 @@ class VocalEmotionDetection:
         feature_padded = np.pad([feature], (0, MAX_PAD - len(feature)), "constant")
         prediction = self.model.predict(feature_padded)[0]
         label = self._one_hot_decode([np.argmax(prediction)])[0]
-        return label
+        return str(label)
 
     def predict_wavefunction(self, x, sampling_rate):
         MAX_PAD = 216
@@ -290,17 +292,23 @@ class VocalEmotionDetection:
         feature_padded = np.pad([feature], (0, MAX_PAD - len(feature)), "constant")
         prediction = self.model.predict(feature_padded)[0]
         label = self._one_hot_decode([np.argmax(prediction)])[0]
-        return label
+        return str(label)
+
+    def check_focus_wavefile(self, wavefile_path):
+        emotion = self.predict_wavefile(wavefile_path)
+        emotion = str(emotion)
+        is_focus = "neutral" in emotion or "sad" in emotion or "fearful" in emotion
+        return is_focus
 
 
-AUDIO_PATH = "dataset/Actor_01/03-01-01-01-01-01-01.wav"
+# AUDIO_PATH = "dataset/Actor_01/03-01-01-01-01-01-01.wav"
 
-detector = VocalEmotionDetection()
-detector.train()
-detector.show_history()
+# detector = VocalEmotionDetection()
+# detector.train()
+# detector.show_history()
 
-x, sampling_rate = librosa.load(
-    AUDIO_PATH, res_type="kaiser_fast", duration=2.5, sr=22050 * 2, offset=0.5
-)
-result = detector.predict_wavefunction(x, sampling_rate)
-print(result)
+# x, sampling_rate = librosa.load(
+#     AUDIO_PATH, res_type="kaiser_fast", duration=2.5, sr=22050 * 2, offset=0.5
+# )
+# result = detector.predict_wavefunction(x, sampling_rate)
+# print(result)
