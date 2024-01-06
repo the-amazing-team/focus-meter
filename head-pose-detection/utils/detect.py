@@ -1,1 +1,0 @@
-def detect(image, model, bbox,)
