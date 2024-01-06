@@ -1,21 +1,41 @@
 import cv2
 from services.drowsiness.DrowsinessDetector import DrowsinessDetector
 from services.headpose.HeadposeDetector import HeadposeDetector
-
-# from services.headpose import HeadposeDetector
 from services.emotion.Engine.EmotionDetector import EmotionDetector
 
-drowsiness_detector = DrowsinessDetector()
-headpose_detector = HeadposeDetector()
-emotion_detector = EmotionDetector()
 
-sample_image = cv2.imread("sample7.jpg")
+class VisualFocusMeter:
+    def __init__(self):
+        self.drowsiness_detector = DrowsinessDetector()
+        self.headpose_detector = HeadposeDetector()
+        self.emotion_detector = EmotionDetector()
 
-# cv2.imshow("photo", sample_image)
-# cv2.waitKey(0)
-# cv2.destroyAllWindows()
+        self.DROWSINESS_PERCENTAGE = 1 / 3
+        self.HEADPOSE_PERCENTAGE = 1 / 3
+        self.EMOTION_PERCENTAGE = 1 / 3
 
-# result = drowsiness_detector.get_drowsiness(sample_image)
-# unfocusness, image = headpose_detector.get_unfocus_headpose_percentage(sample_image)
-emotion = emotion_detector.get_emotional_focus(sample_image)
-print(emotion)
+    def get_visual_focus(self, image):
+        drowsiness = self.drowsiness_detector.get_drowsiness(image)
+        unfocusness, image = self.headpose_detector.get_unfocus_headpose_percentage(
+            image
+        )
+        emotion = self.emotion_detector.get_emotional_focus(image)
+
+        drowsiness_cofficient = 0 if drowsiness else 1
+        headpose_coffiecient = 1 - unfocusness if unfocusness is not None else 0
+        emotion_coffiecient = 1 if emotion else 0
+
+        focuss_amount = (
+            drowsiness_cofficient * self.DROWSINESS_PERCENTAGE
+            + headpose_coffiecient * self.HEADPOSE_PERCENTAGE
+            + emotion_coffiecient * self.EMOTION_PERCENTAGE
+        )
+
+        return focuss_amount
+
+
+focusmeter = VisualFocusMeter()
+
+sample_image = cv2.imread("sample3.jpg")
+result = focusmeter.get_visual_focus(sample_image)
+print(result)

@@ -1,6 +1,6 @@
 import cv2
 from fer import FER
-from services.emotion.Engine.FaceDetector import FaceDetector
+from Engine.FaceDetector import FaceDetector
 
 
 class EmotionDetector(FaceDetector):

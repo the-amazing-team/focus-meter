@@ -213,7 +213,7 @@ class VocalEmotionDetection:
             train_features_padded,
             train_labels,
             batch_size=16,
-            epochs=700,
+            epochs=100,
             validation_data=(test_features_padded, test_labels),
         )
 
@@ -296,7 +296,8 @@ class VocalEmotionDetection:
 AUDIO_PATH = "dataset/Actor_01/03-01-01-01-01-01-01.wav"
 
 detector = VocalEmotionDetection()
-detector.quick_train()
+detector.train()
+detector.show_history()
 
 x, sampling_rate = librosa.load(
     AUDIO_PATH, res_type="kaiser_fast", duration=2.5, sr=22050 * 2, offset=0.5
