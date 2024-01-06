@@ -61,7 +61,7 @@ class DrowsinessDetector:
 
     def _calc_aspect_ratio(self, rect):
         x, y, w, h = rect
-        return w / h
+        return h / w
 
     def _mark_rect(self, image, rect):
         x, y, w, h = rect
@@ -94,6 +94,12 @@ class DrowsinessDetector:
 
         return EAR, YAR
 
+    def get_drowsiness(self, image):
+        EAR, YAR = self.get_drowsiness_parameters(image)
+        if EAR < 0.2 and YAR > 0.4:
+            return True
+        return False
+
     def mark_image(self, image):
         height, width, _ = image.shape
 
@@ -112,22 +118,22 @@ class DrowsinessDetector:
         return image
 
 
-capture = cv2.VideoCapture(0)
+# capture = cv2.VideoCapture(0)
 
-FRAME_WIDTH = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
-FRAME_HEIGHT = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+# FRAME_WIDTH = int(capture.get(cv2.CAP_PROP_FRAME_WIDTH))
+# FRAME_HEIGHT = int(capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
 
-while True:
-    ret, frame = capture.read()
-    if ret:
-        detector = DrowsinessDetector()
-        parameters = detector.get_drowsiness_parameters(frame)
-        if parameters:
-            EAR, YAR = parameters
-            print(EAR, YAR)
-        frame = detector.mark_image(frame)
-        cv2.imshow("photo", frame)
-        key = cv2.waitKey(1)
-        if key == ord("q"):
-            break
+# while True:
+#     ret, frame = capture.read()
+#     if ret:
+#         detector = DrowsinessDetector()
+#         parameters = detector.get_drowsiness_parameters(frame)
+#         if parameters:
+#             EAR, YAR = parameters
+#             print(EAR, YAR)
+#         frame = detector.mark_image(frame)
+#         cv2.imshow("photo", frame)
+#         key = cv2.waitKey(1)
+#         if key == ord("q"):
+#             break
