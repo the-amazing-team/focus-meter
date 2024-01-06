@@ -1,19 +1,22 @@
 import cv2
-from network.network import Network
-from utils import load_snapshot
+from services.headpose.network.network import Network
+from services.headpose.utils import load_snapshot
 from torchvision import transforms
 import numpy as np
 import torch
 import time
 from PIL import Image
-from utils.camera_normalize import drawAxis
+from services.headpose.utils.camera_normalize import drawAxis
+import math
 
 
 class HeadposeDetector:
     def __init__(self):
-        self.face_cascade = cv2.CascadeClassifier("lbpcascade_frontalface_improved.xml")
+        self.face_cascade = cv2.CascadeClassifier(
+            "./services/headpose/lbpcascade_frontalface_improved.xml"
+        )
         self.pose_estimator = Network(bin_train=False)
-        load_snapshot(self.pose_estimator, "./models/model-b66.pkl")
+        load_snapshot(self.pose_estimator, "./services/headpose/models/model-b66.pkl")
         self.pose_estimator = self.pose_estimator.eval()
         self.transform_test = transforms.Compose(
             [
@@ -85,13 +88,30 @@ class HeadposeDetector:
 
     def detect_headpose(self, image):
         faces = self._detect_faces(image)
+        if len(faces) == 0:
+            return None, image
+
         face_tensors, face_images = self._get_face_tensors_and_images(image, faces)
         headposes = self._get_headpose(face_tensors, face_images)
         # restricting headpose detection to one person
         headposes = [headposes[0]] if len(headposes) > 0 else []
         self._mark_headposes(face_images, headposes)
         headposes = [headpose.item() for headpose in headposes[0]]
-        return headposes, image
+        headpose = headposes[0] if len(headposes) > 0 else None
+        roll = headposes[0] if len(headposes) > 0 else None
+        yaw = headposes[1] if len(headposes) > 0 else None
+        pitch = headposes[2] if len(headposes) > 0 else None
+        distance_from_center = math.sqrt(pow(yaw, 2) + pow(pitch, 2))
+        return distance_from_center, image
+
+    def get_unfocus_headpose_percentage(self, image):
+        MAX_DEG = 25
+        distance, image = self.detect_headpose(image)
+        if distance is None:
+            return None, image
+
+        unfocus_degree = min(distance / MAX_DEG, 1)
+        return unfocus_degree, image
 
 
 # capture = cv2.VideoCapture(0)
